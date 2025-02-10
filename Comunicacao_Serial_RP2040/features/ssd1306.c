@@ -1,4 +1,5 @@
-#include "./ssd1306.h"
+#include "ssd1306.h"
+#include "font.h"
 
 void ssd1306_init(ssd1306_t *ssd, uint8_t width, uint8_t height, bool external_vcc, uint8_t address, i2c_inst_t *i2c) {
   ssd->width = width;
@@ -40,6 +41,7 @@ void ssd1306_config(ssd1306_t *ssd) {
   ssd1306_command(ssd, SET_DISP | 0x01);
 }
 
+
 void ssd1306_command(ssd1306_t *ssd, uint8_t command) {
   ssd->port_buffer[1] = command;
   i2c_write_blocking(
@@ -77,10 +79,14 @@ void ssd1306_pixel(ssd1306_t *ssd, uint8_t x, uint8_t y, bool value) {
 }
 
 void ssd1306_fill(ssd1306_t *ssd, bool value) {
-  uint8_t byte = value ? 0xFF : 0x00;
-  for (uint8_t i = 1; i < ssd->bufsize; ++i)
-    ssd->ram_buffer[i] = byte;
+    // Itera por todas as posições do display
+    for (uint8_t y = 0; y < ssd->height; ++y) {
+        for (uint8_t x = 0; x < ssd->width; ++x) {
+            ssd1306_pixel(ssd, x, y, value);
+        }
+    }
 }
+
 
 void ssd1306_rect(ssd1306_t *ssd, uint8_t top, uint8_t left, uint8_t width, uint8_t height, bool value, bool fill) {
   for (uint8_t x = left; x < left + width; ++x) {
@@ -111,4 +117,45 @@ void ssd1306_hline(ssd1306_t *ssd, uint8_t x0, uint8_t x1, uint8_t y, bool value
 void ssd1306_vline(ssd1306_t *ssd, uint8_t x, uint8_t y0, uint8_t y1, bool value) {
   for (uint8_t y = y0; y <= y1; ++y)
     ssd1306_pixel(ssd, x, y, value);
+}
+
+
+// Função para desenhar um caractere
+void ssd1306_draw_char(ssd1306_t *ssd, char c, uint8_t x, uint8_t y)
+{
+  uint16_t index = 0;
+  if (c >= 'A' && c <= 'Z')  {
+    index = (c - 'A' + 11) * 8; // Para letras maiúsculas
+  }
+  else if (c >= 'a' && c <= 'z')  {
+    index = (c - 'a' + 37) * 8; // Para letras minúsculas
+  }
+  else if (c >= '0' && c <= '9')  {
+    index = (c - '0' + 1) * 8; // Para números
+  }
+  else  {
+    return; // char invalido
+  }
+  
+  for (uint8_t i = 0; i < 8; ++i)  {
+    uint8_t line = font[index + i];
+    for (uint8_t j = 0; j < 8; ++j)    {
+      ssd1306_pixel(ssd, x + i, y + j, line & (1 << j));
+    }
+  }
+}
+
+// Função para desenhar uma string
+void ssd1306_draw_string(ssd1306_t *ssd, const char *str, uint8_t x, uint8_t y){
+  while (*str)  {
+    ssd1306_draw_char(ssd, *str++, x, y);
+    x += 8;
+    if (x + 8 >= ssd->width){
+      x = 0;
+      y += 8;
+    }
+    if (y + 8 >= ssd->height){
+      break;
+    }
+  }
 }

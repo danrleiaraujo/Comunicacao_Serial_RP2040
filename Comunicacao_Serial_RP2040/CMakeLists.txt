@@ -35,7 +35,7 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(ws2812b ws2812b.c )
+add_executable(ws2812b ws2812b.c features/ssd1306.c)
 
 pico_set_program_name(ws2812b "ws2812b")
 pico_set_program_version(ws2812b "0.1")
@@ -53,7 +53,8 @@ target_sources(ws2812b PRIVATE ws2812b.c)
 target_link_libraries(ws2812b
         pico_stdlib
         pico_bootrom
-        hardware_pio)
+        hardware_pio
+        )
 
 # Add the standard include files to the build
 target_include_directories(ws2812b PRIVATE
@@ -63,7 +64,8 @@ target_include_directories(ws2812b PRIVATE
 # Add any user requested libraries
 target_link_libraries(ws2812b 
         hardware_i2c
-	    hardware_adc
+        hardware_pio
+	        hardware_adc
         pico_bootrom
         )
 

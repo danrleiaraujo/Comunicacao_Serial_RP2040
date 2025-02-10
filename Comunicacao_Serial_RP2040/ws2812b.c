@@ -38,45 +38,41 @@ uint32_t last_time = 0;      // captura o tempo do ultimo acionamento do botão 
 // Variaveis
 volatile bool led_B_ativado = 0; // Usado para saber qual led esta ligado
 volatile bool led_G_ativado = 0; // Usado para saber qual led esta ligado
+volatile bool BUTTON_A_pressionado = false;
+volatile bool BUTTON_B_pressionado = false;
 
 // Botoes
 #define BUTTON_A 5
 #define BUTTON_B 6
 #define BTN_STICK 22
 
-volatile bool BUTTON_A_pressionado = false;
-volatile bool BUTTON_B_pressionado = false;
 
+// Funcoes
 void callback_botao(uint gpio, uint32_t events);
+void resposta_btns(int led);
+void escreve_caractere(char c);
 
 int main(){
     // Inicializa entradas e saídas.
     stdio_init_all();
 
+    printf("Funciona 0\n");
     // I2C Initialisation. Using it at 400Khz.
     i2c_init(I2C_PORT, 400 * 1000);
 
     gpio_set_function(I2C_SDA, GPIO_FUNC_I2C);                    // Set the GPIO pin function to I2C
-    gpio_set_function(I2C_SCL, GPIO_FUNC_I2C);                    // Set the GPIO pin function to I2C
     gpio_pull_up(I2C_SDA);                                        // Pull up the data line
+    gpio_set_function(I2C_SCL, GPIO_FUNC_I2C);                    // Set the GPIO pin function to I2C
     gpio_pull_up(I2C_SCL);                                        // Pull up the clock line
     ssd1306_init(&ssd, WIDTH, HEIGHT, false, endereco, I2C_PORT); // Inicializa o display
+    
     ssd1306_config(&ssd);                                         // Configura o display
-    ssd1306_send_data(&ssd);                                      // Envia os dados para o display
+    
+    ssd1306_send_data(&ssd);         
 
     // Limpa o display. O display inicia com todos os pixels LIGADOS.
     ssd1306_fill(&ssd, true);
     ssd1306_send_data(&ssd);
-
-
-    // I2C Initialisation. Using it at 400Khz.
-    i2c_init(I2C_PORT, 400*1000);
-
-    gpio_set_function(I2C_SDA, GPIO_FUNC_I2C);
-    gpio_pull_up(I2C_SDA);
-
-    gpio_set_function(I2C_SCL, GPIO_FUNC_I2C);
-    gpio_pull_up(I2C_SCL);
     
     gpio_init(LED_B);
     gpio_set_dir(LED_B, GPIO_OUT);
@@ -106,13 +102,14 @@ int main(){
     gpio_set_irq_enabled_with_callback(BUTTON_A, GPIO_IRQ_EDGE_RISE, true, &callback_botao);
     gpio_set_irq_enabled_with_callback(BUTTON_B, GPIO_IRQ_EDGE_RISE, true, &callback_botao); 
     gpio_set_irq_enabled_with_callback(BTN_STICK, GPIO_IRQ_EDGE_FALL, true, &callback_botao); //Bootloader
-    
+    printf("Funciona 1\n");
     while (true){
-        if (stdio_usb_connected()){ // Certifica-se de que o USB está conectado
             char c;
-            printf("Escreva um caractere\n");
+            printf("Funciona 2\n");
             if (scanf("%c", &c) == 1){ // Lê caractere da entrada padrão
+                printf("Funciona 3\n");
                 printf("Caractere recebido: %c\n", c);
+                escreve_caractere(c);
                 switch (c){
                     case '0':
                         desenhaMatriz(zero, 1, 0.8);
@@ -145,9 +142,9 @@ int main(){
                         desenhaMatriz(nove, 1, 0.8);
                         break;
                     default:
+                        desenhaMatriz(desliga, 0, 0.8);
                 }
             }
-        }
         sleep_ms(100); // Pequeno delay para estabilidade
 
     } // Fim While True
@@ -163,13 +160,12 @@ void callback_botao(uint gpio, uint32_t events){
             if (led_G_ativado){ // Se o verde estiver ativo
                 gpio_put(LED_G, 0);
                 led_G_ativado = 0;
-
-                // LED ACESO ( LIGAR SSD1306 )
             }
             else{ // Se o verde estiver desativado
                 gpio_put(LED_G, 1);
                 led_G_ativado = 1;
             }
+            resposta_btns(LED_G); // Escreve no ssd1306
         }
         else if (gpio == BUTTON_B) { 
             if (led_B_ativado){ // Se o Azul estiver ativo
@@ -181,6 +177,7 @@ void callback_botao(uint gpio, uint32_t events){
                 gpio_put(LED_B, 1);
                 led_B_ativado = 1;
             }
+            resposta_btns(LED_B); // Escreve no ssd1306
         } // acionamento botao
         else if(gpio == BTN_STICK){
             reset_usb_boot(0, 0); //func para entrar no modo bootsel 
@@ -189,24 +186,19 @@ void callback_botao(uint gpio, uint32_t events){
     } // debounce
 }
 
-
-
-void desenha_caractere(char c) // atualiza o display com o caractere inserido pelo usuario
-{
+void escreve_caractere(char c){ // atualiza o display com o caractere inserido pelo usuario
     ssd1306_fill(&ssd, cor);
     ssd1306_rect(&ssd, 3, 3, 122, 58, !cor, cor);
     ssd1306_draw_string(&ssd, "CARACTERE", 28, 10);
+    ssd1306_draw_string(&ssd, "         ", 20, 30);
     ssd1306_draw_string(&ssd, &c, 63, 30);
     ssd1306_draw_string(&ssd, "PRESSIONADO", 20, 48);
     ssd1306_send_data(&ssd);
 }
 
 void resposta_btns(int led){ //trata o acionamento dos botoes, verificando estado e cor dos leds
-    if(led == LED_B){
-        gpio_put(LED_B, false);
-        gpio_put(LED_G, !gpio_get(LED_G));
-        if (led)
-        {
+    if(led == LED_G){
+        if (led_G_ativado){
             ssd1306_fill(&ssd, cor);
             ssd1306_rect(&ssd, 3, 3, 122, 58, !cor, cor);
             ssd1306_draw_string(&ssd, "BOTAO A", 35, 10);
@@ -215,8 +207,7 @@ void resposta_btns(int led){ //trata o acionamento dos botoes, verificando estad
             ssd1306_send_data(&ssd);
             printf("Led VERDE ligado\n");
         }
-        else
-        {
+        else{
             ssd1306_fill(&ssd, cor);
             ssd1306_rect(&ssd, 3, 3, 122, 58, !cor, cor);
             ssd1306_draw_string(&ssd, "BOTAO A", 35, 10);
@@ -226,27 +217,22 @@ void resposta_btns(int led){ //trata o acionamento dos botoes, verificando estad
             printf("Led VERDE desligado\n");
         }
     }
-    else
-    {
-        gpio_put(LED_G, false);
-        gpio_put(LED_B, !gpio_get(LED_B));
-        if (led)
-        {
+    else if(led == LED_B){
+        if (led_B_ativado){
             ssd1306_fill(&ssd, cor);
             ssd1306_rect(&ssd, 3, 3, 122, 58, !cor, cor);
             ssd1306_draw_string(&ssd, "BOTAO B", 35, 10);
             ssd1306_draw_string(&ssd, "PRESSIONADO", 20, 30);
-            ssd1306_draw_string(&ssd, "LED AZUL ON", 20, 48);
+            ssd1306_draw_string(&ssd, "LED AZUL ON", 16, 48);
             ssd1306_send_data(&ssd);
             printf("Led AZUL ligado\n");
         }
-        else
-        {
+        else{
             ssd1306_fill(&ssd, cor);
             ssd1306_rect(&ssd, 3, 3, 122, 58, !cor, cor);
             ssd1306_draw_string(&ssd, "BOTAO B", 35, 10);
             ssd1306_draw_string(&ssd, "PRESSIONADO", 20, 30);
-            ssd1306_draw_string(&ssd, "LED AZUL OFF", 20, 48);
+            ssd1306_draw_string(&ssd, "LED AZUL OFF", 16, 48);
             ssd1306_send_data(&ssd);
             printf("Led AZUL desligado\n");
         }

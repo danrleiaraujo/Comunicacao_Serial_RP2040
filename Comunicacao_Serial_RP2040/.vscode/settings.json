@@ -44,6 +44,8 @@
         "stdio.h": "c",
         "pio.h": "c",
         "bootrom.h": "c",
-        "i2c.h": "c"
+        "i2c.h": "c",
+        "cstdint": "c",
+        "ssd1306.h": "c"
     }
 }
