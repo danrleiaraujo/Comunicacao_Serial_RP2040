@@ -27,8 +27,8 @@ bool cor = true;
 
 
 // Led RGB
-const uint LED_B = 11;
-const uint LED_G = 12;
+const uint LED_G = 11;
+const uint LED_B = 12;
 const uint LED_R = 13;
 
 #define DEBOUNCE_TIME 200000 // 200ms em us de debounce
